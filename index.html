@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calorie Logbook</title>
+<meta name="description" content="A private daily calorie log.">
+<meta name="robots" content="noindex,nofollow">
+<!-- The page may load only its own files, and the only other place it may talk to is GitHub (your data repo). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://api.github.com; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="theme-color" content="#f1f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0c10" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css?v=1.1.0">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1 class="brand">Calorie Logbook</h1>
+    <button class="sync" id="sync" type="button" aria-live="polite" title="Sync status. Tap to sync now, or to see what needs attention."></button>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab" role="tab" id="tab-today" data-view="today" aria-selected="true"><span class="n">Today</span><span class="w">Dashboard</span></button>
+      <button class="tab" role="tab" id="tab-trends" data-view="trends" aria-selected="false">Trends</button>
+      <button class="tab" role="tab" id="tab-history" data-view="history" aria-selected="false">History</button>
+      <button class="tab" role="tab" id="tab-settings" data-view="settings" aria-selected="false">Settings</button>
+    </nav>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <main class="views">
+    <!-- ================= TODAY ================= -->
+    <section class="panel" id="view-today" aria-labelledby="day-title">
+      <div class="day-head">
+        <h2 class="day-title" id="day-title">Today</h2>
+        <button class="icon-btn" id="prev-day" aria-label="Previous day"><svg viewBox="0 0 24 24"><path d="M15 4l-8 8 8 8"/></svg></button>
+        <button class="icon-btn" id="next-day" aria-label="Next day"><svg viewBox="0 0 24 24"><path d="M9 4l8 8-8 8"/></svg></button>
+      </div>
+      <div class="day-tools">
+        <span class="tag" id="day-tag"></span>
+        <button class="link" id="go-today" hidden>Back to today</button>
+        <div class="jump"><label for="jump-date">Jump to</label><input type="date" id="jump-date"></div>
+      </div>
+      <div class="week" id="week" role="group" aria-label="Days of this week"></div>
+
+      <div class="meter" id="meter" role="img" aria-label="Calories eaten against the daily target"><i class="m-rest"></i></div>
+      <p class="amount" id="amount">Daily target</p>
+      <div class="hero">
+        <span class="hero-name" id="hero-name">Calories left</span>
+        <span class="hero-val" id="hero-val">&ndash;</span>
+      </div>
+      <div class="mid"></div>
+
+      <p class="amount add-note" id="add-note" hidden></p>
+      <form class="add" id="add-form" autocomplete="off" novalidate>
+        <label class="sr" for="food">What did you eat?</label>
+        <input class="field" id="food" type="text" placeholder="What did you eat?" enterkeyhint="next" autocapitalize="sentences" role="combobox" aria-expanded="false" aria-controls="sugs" aria-autocomplete="list">
+        <label class="sr" for="kcal">Calories</label>
+        <input class="field num" id="kcal" type="text" inputmode="decimal" placeholder="kcal" enterkeyhint="done">
+        <button class="btn" type="submit" id="add-btn">Add</button>
+      </form>
+      <ul class="sugs" id="sugs" role="listbox" aria-label="Foods you have logged before" hidden></ul>
+      <p class="hint" id="hint" aria-live="polite"></p>
+
+      <p class="label usual-head" id="usual-head" hidden>Your usuals</p>
+      <div class="chips" id="chips"></div>
+
+      <div class="mid"></div>
+      <div class="ledger-head"><span id="ledger-title">Logged</span><span>% Daily Target*</span></div>
+      <ul class="rows" id="rows"></ul>
+      <div class="thick"></div>
+      <div id="sums"></div>
+      <p class="foot" id="foot"></p>
+      <form class="target-form" id="target-form" hidden novalidate>
+        <label for="target-input">Daily target, kcal<input class="field num" id="target-input" type="text" inputmode="numeric"></label>
+        <button class="btn small" type="submit">Save target</button>
+        <button class="btn ghost small" type="button" id="target-cancel">Cancel</button>
+      </form>
+    </section>
+
+    <!-- ================= TRENDS ================= -->
+    <section class="panel" id="view-trends" aria-labelledby="trends-title" hidden>
+      <h2 class="view-title" id="trends-title">Trends</h2>
+      <div class="ranges" id="ranges" role="group" aria-label="Date range">
+        <button class="range" data-range="7" aria-pressed="false">7d</button>
+        <button class="range" data-range="30" aria-pressed="false">30d</button>
+        <button class="range" data-range="90" aria-pressed="false">90d</button>
+        <button class="range" data-range="365" aria-pressed="false">1y</button>
+        <button class="range" data-range="all" aria-pressed="false">All</button>
+      </div>
+      <p class="fig-sub range-note" id="range-note"></p>
+      <div class="thick"></div>
+      <div id="trends-body"><p class="empty">Opening your log&hellip;</p></div>
+    </section>
+
+    <!-- ================= HISTORY ================= -->
+    <section class="panel" id="view-history" aria-labelledby="history-title" hidden>
+      <div class="hist-head">
+        <h2 class="view-title" id="history-title">History</h2>
+        <button class="btn ghost small" id="export-btn" type="button">Export CSV</button>
+      </div>
+      <div class="thick"></div>
+      <div id="history-body"><p class="empty">Opening your log&hellip;</p></div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section class="panel" id="view-settings" aria-labelledby="settings-title" hidden>
+      <h2 class="view-title" id="settings-title">Settings</h2>
+      <div class="thick"></div>
+
+      <h3 class="set-h">Sync with your GitHub repo</h3>
+      <p class="set-p" id="sync-detail"></p>
+      <form class="set-form" id="gh-form" autocomplete="off" novalidate>
+        <label for="gh-repo">Private repository that holds your log
+          <input class="field" id="gh-repo" type="text" placeholder="yourname/calorie-log-data" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+        <label for="gh-token">Access token for that repository
+          <input class="field" id="gh-token" type="password" placeholder="github_pat_&hellip;" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+        <div class="btn-row">
+          <button class="btn small" type="submit" id="gh-connect">Connect</button>
+          <button class="btn ghost small" type="button" id="sync-now" hidden>Sync now</button>
+          <button class="btn ghost small" type="button" id="gh-disconnect" hidden>Disconnect</button>
+        </div>
+        <p class="hint" id="gh-msg" aria-live="polite"></p>
+      </form>
+      <div id="switch-card"></div>
+      <details class="help">
+        <summary>How to set this up</summary>
+        <ol>
+          <li>On GitHub, create a <b>private</b> repository for the data, for example <code>calorie-log-data</code>, and tick <b>Add a README file</b>.</li>
+          <li>Go to Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens &rarr; Generate new token.</li>
+          <li>Under Repository access choose <b>Only select repositories</b> and pick the data repository.</li>
+          <li>Under Permissions &rarr; Repository permissions set <b>Contents</b> to <b>Read and write</b>. Nothing else is needed.</li>
+          <li>Pick an expiry you are comfortable with, generate the token, and paste it above together with <code>yourname/calorie-log-data</code>.</li>
+          <li>Repeat the paste on each device. The token is kept only in this browser.</li>
+        </ol>
+      </details>
+
+      <div class="mid"></div>
+      <h3 class="set-h">Your data</h3>
+      <p class="set-p" id="data-detail"></p>
+      <div class="btn-row">
+        <button class="btn ghost small" type="button" id="export-btn2">Export CSV</button>
+        <button class="btn ghost small" type="button" id="import-btn">Import CSV</button>
+        <input type="file" id="import-input" accept=".csv,text/csv,text/plain" hidden>
+        <button class="btn ghost small" type="button" id="clear-btn" aria-expanded="false" aria-controls="clear-card">Delete history</button>
+        <button class="btn ghost small" type="button" id="erase-btn">Erase this device&rsquo;s copy</button>
+      </div>
+      <p class="hint" id="data-msg" aria-live="polite"></p>
+      <div id="import-card"></div>
+      <div id="clear-card"></div>
+
+      <div class="mid"></div>
+      <h3 class="set-h">This app</h3>
+      <p class="set-p" id="about"></p>
+      <div class="btn-row"><button class="btn ghost small" type="button" id="update-btn">Check for an update</button></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="sr" id="say" aria-live="assertive"></div>
+<script src="app.js?v=1.1.0"></script>
+</body>
+</html>
